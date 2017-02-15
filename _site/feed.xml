@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?><?xml-stylesheet type="text/xml" href="https://yabble.com.au/feed.xslt.xml"?><feed xmlns="http://www.w3.org/2005/Atom"><generator uri="http://jekyllrb.com" version="3.4.0">Jekyll</generator><link href="https://yabble.com.au/feed.xml" rel="self" type="application/atom+xml" /><link href="https://yabble.com.au/" rel="alternate" type="text/html" /><updated>2017-02-15T09:04:22+08:00</updated><id>https://yabble.com.au//</id><title type="html">Pickled Software</title><subtitle>Tech blog about things I make on the internet
+</subtitle><entry><title type="html">Hosting images an easier way</title><link href="https://yabble.com.au/jekyll/update/2017/02/14/Hosting-images-an-easier-way.html" rel="alternate" type="text/html" title="Hosting images an easier way" /><published>2017-02-14T18:10:59+08:00</published><updated>2017-02-14T18:10:59+08:00</updated><id>https://yabble.com.au/jekyll/update/2017/02/14/Hosting%20images%20an%20easier%20way</id><content type="html" xml:base="https://yabble.com.au/jekyll/update/2017/02/14/Hosting-images-an-easier-way.html">&lt;h1 id=&quot;hosting-images-an-easier-way&quot;&gt;Hosting images an easier way&lt;/h1&gt;
+
+&lt;p&gt;&lt;em&gt;This article describes how to set up an 
+image service on AWS that can handle simple 
+image hosting for SASS or other websites&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;When it comes to user submitted images on websites, you can pretty quickly run into heaps of design issues.&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;The user has uploaded a wierdly shaped image&lt;/li&gt;
+  &lt;li&gt;The images are massive and slow down the site&lt;/li&gt;
+  &lt;li&gt;How do I handle uploads of large images?&lt;/li&gt;
+  &lt;li&gt;Where do I store and serve all these images efficiently?&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;These are exactly the issues and questions I faced when building &lt;a href=&quot;https://www.yabble.com.au&quot;&gt;Yabble&lt;/a&gt;. 
+Yabble lists activities for kids holiday programs, and all those activities have images attached.
+They then need to be displayed efficiently on in different sizes and shapes all over the website.&lt;/p&gt;
+
+&lt;h2 id=&quot;serving-images&quot;&gt;Serving Images&lt;/h2&gt;
+
+&lt;p&gt;The easiest solution I came up with for this was to store the images in an S3 bucket 
+on AWS and host a separate image service on a subdomain.&lt;/p&gt;
+
+&lt;p&gt;I managed to find &lt;a href=&quot;https://github.com/jimmynicol/image-resizer&quot;&gt;this handy repo on github&lt;/a&gt; 
+which serves up images direct from an S3 bucket and then can do image manipuations 
+using the &lt;a href=&quot;https://github.com/lovell/sharp&quot;&gt;sharp&lt;/a&gt; library.&lt;/p&gt;
+
+&lt;p&gt;I then set up a simple Elastic Beanstalk instance running node on the cheapest option available,
+set the appropriate environment variables:&lt;/p&gt;
+&lt;div class=&quot;language-javascript highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;//AWS keys&lt;/span&gt;
+&lt;span class=&quot;nl&quot;&gt;AWS_ACCESS_KEY_ID&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;your_key&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;span class=&quot;nx&quot;&gt;AWS_SECRET_ACCESS_KEY&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;your_secret&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;span class=&quot;nx&quot;&gt;AWS_REGION&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;your_region&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;span class=&quot;nx&quot;&gt;S3_BUCKET&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;your_bucket&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;and the image service was up and running. Now serving images at any width or height, configurable on the url.&lt;/p&gt;
+
+&lt;p&gt;eg: original image: https://images.yabble.com.au/activities/Jam-Sessions-Young-ones_41130&lt;/p&gt;
+
+&lt;p&gt;and image scaled to 200px wide: https://images.yabble.com.au/&lt;strong&gt;w200&lt;/strong&gt;/activities/Jam-Sessions-Young-ones_41130&lt;/p&gt;
+
+&lt;p&gt;Perfect, this lets us scale any uploaded image to handle whatever is necessary for different parts of the site. Pop this behind a CDN like cloudflare and cache like crazy!&lt;/p&gt;
+
+&lt;h2 id=&quot;uploading-images&quot;&gt;Uploading images&lt;/h2&gt;
+
+&lt;p&gt;This part is a little trickier, we now need to somehow send the images users upload to the site to our S3 bucket.&lt;/p&gt;
+
+&lt;p&gt;You could sift throught the terrible documentation for S3 multi part uploads and programmatically creating permissions and signing requests.
+Or you could use another handy little library &lt;a href=&quot;https://github.com/TTLabs/EvaporateJS&quot;&gt;EvaporateJS&lt;/a&gt; that does most of this for you.&lt;/p&gt;
+
+&lt;p&gt;The code you will need for the front end will look something like this (ES6):&lt;/p&gt;
+
+&lt;div class=&quot;language-javascript highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kr&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Evaporate&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'evaporate'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;nx&quot;&gt;uploadImage&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Promise&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;resolve&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+		&lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;evaporate&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Evaporate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
+			&lt;span class=&quot;na&quot;&gt;signerUrl&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'&amp;lt;Url to sign the response using your AWS secret key&amp;gt;'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+			&lt;span class=&quot;na&quot;&gt;aws_key&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'&amp;lt;AWS Key&amp;gt;'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+			&lt;span class=&quot;na&quot;&gt;bucket&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'&amp;lt;Your Bucket name&amp;gt;'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+			&lt;span class=&quot;na&quot;&gt;aws_url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'&amp;lt;Region Url&amp;gt;'&lt;/span&gt;
+		&lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
+
+		&lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;folder&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;`&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;some_folder&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;`&lt;/span&gt;
+		&lt;span class=&quot;nx&quot;&gt;evaporate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;add&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
+				&lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;folder&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+				&lt;span class=&quot;na&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+				&lt;span class=&quot;na&quot;&gt;progress&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;progressValue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;console&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'Progress'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;progressValue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+				&lt;span class=&quot;na&quot;&gt;complete&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;_xhr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;awsKey&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; 
+					&lt;span class=&quot;nx&quot;&gt;console&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'Complete!'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; 
+					&lt;span class=&quot;nx&quot;&gt;resolve&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+				&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+			&lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
+	&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Evaporate puts together all the details for a request that can be signed with your AWS Secret key, and uploaded to your S3 bucket.
+This requires a little bit of code on your backend to sign the request. In express on node this looks something like:&lt;/p&gt;
+
+&lt;div class=&quot;language-javascript highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;crypto&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'crypto'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;secret&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'your_secret_key'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;nx&quot;&gt;module&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;exports&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;req&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;send&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+            &lt;span class=&quot;nx&quot;&gt;crypto&lt;/span&gt;
+                &lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;createHmac&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'sha1'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;secret&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+                &lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;update&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;req&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;query&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;to_sign&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+                &lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;digest&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'base64'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Evaporate can use that signed request to upload the file directly from the users browser to your S3 bucket without the image ever touching your backend. It also avoids having open write permissions on your bucket.
+Obviously you would want to authenticate your users in your signing request so that this can’t be abused.&lt;/p&gt;
+
+&lt;p&gt;From here you can use the folder and filename as the identifier for images in your database, and they can be retrieved by appending them to whatever url your image service is hosted on.&lt;/p&gt;
+
+&lt;p&gt;eg: &lt;strong&gt;host:&lt;/strong&gt; https://images.yabble.com/, &lt;strong&gt;id:&lt;/strong&gt; activities/Jam-Sessions-Young-ones_41130&lt;/p&gt;
+
+&lt;h2 id=&quot;summary&quot;&gt;Summary&lt;/h2&gt;
+&lt;p&gt;Now we have a solution that:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;cheaply and efficiently stores images in an S3 bucket (allows for simple backups also)&lt;/li&gt;
+  &lt;li&gt;hosts them through a simple node server on Elastic Beanstalk (it will spend very little cpu time too!)&lt;/li&gt;
+  &lt;li&gt;can be easily cache requests through a CDN like cloudflare&lt;/li&gt;
+  &lt;li&gt;uploads images easily without having to store or serve them locally&lt;/li&gt;
+  &lt;li&gt;can resize images to whatever dimensions for different parts of the site&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;I’ve had this setup running for the last 6 months and haven’t had to touch it once. It uses barely any CPU on the EC2 instance and is super responsive.&lt;/p&gt;</content><summary type="html">Hosting images an easier way</summary></entry></feed>

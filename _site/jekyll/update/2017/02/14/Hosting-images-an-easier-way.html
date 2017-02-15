@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Hosting images an easier way</title>
+  <meta name="description" content="Hosting images an easier way">
+
+  
+  
+  <link rel="stylesheet" href="https://yabble.com.au/assets/style.css">
+
+  <link rel="canonical" href="https://yabble.com.au/jekyll/update/2017/02/14/Hosting-images-an-easier-way.html">
+  <link rel="alternate" type="application/rss+xml" title="Pickled Software" href="https://yabble.com.au/feed.xml">
+
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
+</head>
+
+  
+  <!-- font-smoothing is only applied on dark themes -->
+  <body class="font-smoothing">
+
+    <header class="px-2 clearfix">
+  <!-- <div class="left-lg absolute-lg left-0 top-0 sm-width-full mt-2">
+    <a class="no-underline-hover px-1" href="/">
+      <span class="inline-block h4 hide-sm ml-2">&#x261c;</span>
+    </a>
+    <a class="italic no-underline" href="/">
+       home
+    </a>
+  </div> -->
+  <div class="right-lg absolute-lg right-0 top-0">
+    <ul class="mt-1 mt-lg-2 mr-2 mr-lg-3">
+      <li class="inline-block block-lg text-right ml-1 ml-lg-0">
+        <a class="italic h4 bold no-underline" href="/">
+          <!-- Pickled Software -->
+          Home
+        </a>
+      </li>
+      
+        
+        <li class="inline-block block-lg text-right ml-1 ml-lg-0">
+          <a class="italic no-underline h4" href="/about/">
+            About
+          </a>
+        </li>
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </ul>
+  </div>
+</header>
+
+
+    <div>
+      <article class="container mx-auto px-2" itemscope itemtype="http://schema.org/BlogPosting">
+  <div class="mt-4 mb-2 clearfix header-text">
+    <h1 class="h0 inline-block py-2 mt-4 header-title">Hosting images an easier way</h1>
+    <div class="clearfix mb-4 py-1">
+      <p class="h4 lh-condensed"><time datetime="2017-02-14T18:10:59+08:00" itemprop="datePublished">Feb 14, 2017</time></p>
+      <div class="col-1 sm-width-full border-top-thick">
+      </div>
+    </div>
+  </div>
+
+  <div class="prose py-4" itemprop="articleBody">
+      <h1 id="hosting-images-an-easier-way">Hosting images an easier way</h1>
+
+<p><em>This article describes how to set up an 
+image service on AWS that can handle simple 
+image hosting for SASS or other websites</em></p>
+
+<p>When it comes to user submitted images on websites, you can pretty quickly run into heaps of design issues.</p>
+<ul>
+  <li>The user has uploaded a wierdly shaped image</li>
+  <li>The images are massive and slow down the site</li>
+  <li>How do I handle uploads of large images?</li>
+  <li>Where do I store and serve all these images efficiently?</li>
+</ul>
+
+<p>These are exactly the issues and questions I faced when building <a href="https://www.yabble.com.au">Yabble</a>. 
+Yabble lists activities for kids holiday programs, and all those activities have images attached.
+They then need to be displayed efficiently on in different sizes and shapes all over the website.</p>
+
+<h2 id="serving-images">Serving Images</h2>
+
+<p>The easiest solution I came up with for this was to store the images in an S3 bucket 
+on AWS and host a separate image service on a subdomain.</p>
+
+<p>I managed to find <a href="https://github.com/jimmynicol/image-resizer">this handy repo on github</a> 
+which serves up images direct from an S3 bucket and then can do image manipuations 
+using the <a href="https://github.com/lovell/sharp">sharp</a> library.</p>
+
+<p>I then set up a simple Elastic Beanstalk instance running node on the cheapest option available,
+set the appropriate environment variables:</p>
+<div class="language-javascript highlighter-rouge"><pre class="highlight"><code><span class="c1">//AWS keys</span>
+<span class="nl">AWS_ACCESS_KEY_ID</span><span class="p">:</span> <span class="o">&lt;</span><span class="nx">your_key</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="nx">AWS_SECRET_ACCESS_KEY</span><span class="err">:</span> <span class="o">&lt;</span><span class="nx">your_secret</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="nx">AWS_REGION</span><span class="err">:</span> <span class="o">&lt;</span><span class="nx">your_region</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="nx">S3_BUCKET</span><span class="err">:</span> <span class="o">&lt;</span><span class="nx">your_bucket</span><span class="o">&gt;</span>
+</code></pre>
+</div>
+
+<p>and the image service was up and running. Now serving images at any width or height, configurable on the url.</p>
+
+<p>eg: original image: https://images.yabble.com.au/activities/Jam-Sessions-Young-ones_41130</p>
+
+<p>and image scaled to 200px wide: https://images.yabble.com.au/<strong>w200</strong>/activities/Jam-Sessions-Young-ones_41130</p>
+
+<p>Perfect, this lets us scale any uploaded image to handle whatever is necessary for different parts of the site. Pop this behind a CDN like cloudflare and cache like crazy!</p>
+
+<h2 id="uploading-images">Uploading images</h2>
+
+<p>This part is a little trickier, we now need to somehow send the images users upload to the site to our S3 bucket.</p>
+
+<p>You could sift throught the terrible documentation for S3 multi part uploads and programmatically creating permissions and signing requests.
+Or you could use another handy little library <a href="https://github.com/TTLabs/EvaporateJS">EvaporateJS</a> that does most of this for you.</p>
+
+<p>The code you will need for the front end will look something like this (ES6):</p>
+
+<div class="language-javascript highlighter-rouge"><pre class="highlight"><code><span class="kr">import</span> <span class="nx">Evaporate</span> <span class="nx">from</span> <span class="s1">'evaporate'</span><span class="p">;</span>
+<span class="nx">uploadImage</span> <span class="o">=</span> <span class="p">(</span><span class="nx">file</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+	<span class="k">return</span> <span class="k">new</span> <span class="nx">Promise</span><span class="p">(</span><span class="nx">resolve</span> <span class="o">=&gt;</span> <span class="p">{</span>
+		<span class="kr">const</span> <span class="nx">evaporate</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Evaporate</span><span class="p">({</span>
+			<span class="na">signerUrl</span><span class="p">:</span> <span class="s1">'&lt;Url to sign the response using your AWS secret key&gt;'</span><span class="p">,</span>
+			<span class="na">aws_key</span><span class="p">:</span> <span class="s1">'&lt;AWS Key&gt;'</span><span class="p">,</span>
+			<span class="na">bucket</span><span class="p">:</span> <span class="s1">'&lt;Your Bucket name&gt;'</span><span class="p">,</span>
+			<span class="na">aws_url</span><span class="p">:</span> <span class="s1">'&lt;Region Url&gt;'</span>
+		<span class="p">});</span>
+
+		<span class="kr">const</span> <span class="nx">folder</span> <span class="o">=</span> <span class="err">`</span><span class="nx">some_folder</span><span class="err">`</span>
+		<span class="nx">evaporate</span><span class="p">.</span><span class="nx">add</span><span class="p">({</span>
+				<span class="na">name</span><span class="p">:</span> <span class="nx">folder</span><span class="p">,</span>
+				<span class="na">file</span><span class="p">:</span> <span class="nx">file</span><span class="p">,</span>
+				<span class="na">progress</span><span class="p">:</span> <span class="p">(</span><span class="nx">progressValue</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'Progress'</span><span class="p">,</span> <span class="nx">progressValue</span><span class="p">),</span>
+				<span class="na">complete</span><span class="p">:</span> <span class="p">(</span><span class="nx">_xhr</span><span class="p">,</span> <span class="nx">awsKey</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span> 
+					<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'Complete!'</span><span class="p">);</span> 
+					<span class="nx">resolve</span><span class="p">([</span><span class="nx">name</span><span class="p">])</span>
+				<span class="p">}</span>
+			<span class="p">});</span>
+	<span class="p">})</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<p>Evaporate puts together all the details for a request that can be signed with your AWS Secret key, and uploaded to your S3 bucket.
+This requires a little bit of code on your backend to sign the request. In express on node this looks something like:</p>
+
+<div class="language-javascript highlighter-rouge"><pre class="highlight"><code><span class="kd">var</span> <span class="nx">crypto</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'crypto'</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">secret</span> <span class="o">=</span> <span class="s1">'your_secret_key'</span><span class="p">;</span>
+
+<span class="nx">module</span><span class="p">.</span><span class="nx">exports</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="na">get</span><span class="p">:</span> <span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">res</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+        <span class="nx">res</span><span class="p">.</span><span class="nx">send</span><span class="p">(</span>
+            <span class="nx">crypto</span>
+                <span class="p">.</span><span class="nx">createHmac</span><span class="p">(</span><span class="s1">'sha1'</span><span class="p">,</span> <span class="nx">secret</span><span class="p">)</span>
+                <span class="p">.</span><span class="nx">update</span><span class="p">(</span><span class="nx">req</span><span class="p">.</span><span class="nx">query</span><span class="p">.</span><span class="nx">to_sign</span><span class="p">)</span>
+                <span class="p">.</span><span class="nx">digest</span><span class="p">(</span><span class="s1">'base64'</span><span class="p">)</span>
+        <span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">};</span>
+</code></pre>
+</div>
+
+<p>Evaporate can use that signed request to upload the file directly from the users browser to your S3 bucket without the image ever touching your backend. It also avoids having open write permissions on your bucket.
+Obviously you would want to authenticate your users in your signing request so that this can’t be abused.</p>
+
+<p>From here you can use the folder and filename as the identifier for images in your database, and they can be retrieved by appending them to whatever url your image service is hosted on.</p>
+
+<p>eg: <strong>host:</strong> https://images.yabble.com/, <strong>id:</strong> activities/Jam-Sessions-Young-ones_41130</p>
+
+<h2 id="summary">Summary</h2>
+<p>Now we have a solution that:</p>
+<ul>
+  <li>cheaply and efficiently stores images in an S3 bucket (allows for simple backups also)</li>
+  <li>hosts them through a simple node server on Elastic Beanstalk (it will spend very little cpu time too!)</li>
+  <li>can be easily cache requests through a CDN like cloudflare</li>
+  <li>uploads images easily without having to store or serve them locally</li>
+  <li>can resize images to whatever dimensions for different parts of the site</li>
+</ul>
+
+<p>I’ve had this setup running for the last 6 months and haven’t had to touch it once. It uses barely any CPU on the EC2 instance and is super responsive.</p>
+
+
+  </div>
+</article>
+
+<div class="container mx-auto px-2 py-2 clearfix">
+  <!-- Use if you want to show previous and next for all posts. -->
+
+
+
+  
+
+</div>
+
+    </div>
+
+    <div class="container mx-auto clearfix mt-2 mt-lg-4 px-2">
+  <div class="border-top-thick">
+    <p class="col-8 sm-width-full left py-2 mb-0">This project is maintained by <a class="text-accent" href="https://github.com/dpix">dpix</a></p>
+    <ul class="list-reset right clearfix sm-width-full py-2 mb-2 mb-lg-0">
+      <li class="inline-block mr-1">
+        <a href="https://twitter.com/share" class="twitter-share-button" data-hashtags="Pickled Software">Tweet</a> <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+      </li>
+      <li class="inline-block">
+        <a class="github-button" href="https://github.com/dpix/" data-icon="octicon-star" data-count-href="dpix//stargazers" data-count-api="/repos/dpix/#stargazers_count" data-count-aria-label="# stargazers on GitHub" aria-label="Star dpix/ on GitHub">Star</a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+
+  </body>
+
+</html>
