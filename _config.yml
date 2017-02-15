@@ -23,7 +23,7 @@ github_username:  dpix
 
 # Build settings
 markdown: kramdown
-theme: jekyll-theme-minimal
+theme: jekyll-athena
 gems:
   - jekyll-feed
 exclude:
